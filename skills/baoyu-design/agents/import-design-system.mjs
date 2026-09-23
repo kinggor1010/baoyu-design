@@ -19,6 +19,7 @@ import path from 'node:path';
 import { buildModel } from './lib/ds-core.mjs';
 import { metaPathFor, readMeta, bootstrapMeta, writeMeta } from './lib/asset-store.mjs';
 import { renderDsPrompt, extractPromptExcerpt, sampleComponentNames } from './lib/ds-prompt.mjs';
+import { containedPath } from './lib/contained-path.mjs';
 
 // --- args ---------------------------------------------------------------------
 const argv = process.argv.slice(2);
@@ -57,14 +58,21 @@ try {
 }
 
 const dsSlug = path.basename(dsDir);
-const destRoot = path.join(projectDir, '_ds', dsSlug);
+const destRel = path.join('_ds', dsSlug);
+const destRoot = containedPath(projectDir, destRel);
+const sourcePath = (rel) => containedPath(dsDir, rel);
+// Check from projectDir as well, including the _ds/<slug> directories.
+const outputPath = (rel) => {
+  containedPath(destRoot, rel);
+  return containedPath(projectDir, path.join(destRel, rel));
+};
 
 // --- copy helpers -------------------------------------------------------------
 const toPosix = (p) => p.split(path.sep).join('/');
 
 function copyFileRel(relPath) {
-  const from = path.join(dsDir, relPath);
-  const to = path.join(destRoot, relPath);
+  const from = sourcePath(relPath);
+  const to = outputPath(relPath);
   if (!fs.existsSync(from) || !fs.statSync(from).isFile()) return false;
   fs.mkdirSync(path.dirname(to), { recursive: true });
   fs.copyFileSync(from, to);
@@ -82,7 +90,7 @@ function copyOnce(relPath) {
 const URL_RE = /url\(\s*["']?([^"')]+)["']?\s*\)/g;
 function cssAssetTargets(cssRel) {
   let css;
-  try { css = fs.readFileSync(path.join(dsDir, cssRel), 'utf8'); } catch { return []; }
+  try { css = fs.readFileSync(sourcePath(cssRel), 'utf8'); } catch { return []; }
   const dir = path.posix.dirname(cssRel);
   const out = [];
   let m;
@@ -100,7 +108,7 @@ function cssAssetTargets(cssRel) {
 }
 
 function copyDirRel(relDir) {
-  const fromDir = path.join(dsDir, relDir);
+  const fromDir = sourcePath(relDir);
   if (!fs.existsSync(fromDir) || !fs.statSync(fromDir).isDirectory()) return 0;
   let n = 0;
   const rec = (d) => {
@@ -135,14 +143,14 @@ const assetDirCount = copied.size - beforeAssets;
 // --- design-system display name -----------------------------------------------
 function firstH1(mdRel) {
   try {
-    const m = /^#\s+(.+?)\s*$/m.exec(fs.readFileSync(path.join(dsDir, mdRel), 'utf8'));
+    const m = /^#\s+(.+?)\s*$/m.exec(fs.readFileSync(sourcePath(mdRel), 'utf8'));
     if (m) return m[1].trim();
   } catch { /* none */ }
   return null;
 }
 function skillName(skillRel) {
   try {
-    const m = /^name:\s*(.+?)\s*$/m.exec(fs.readFileSync(path.join(dsDir, skillRel), 'utf8'));
+    const m = /^name:\s*(.+?)\s*$/m.exec(fs.readFileSync(sourcePath(skillRel), 'utf8'));
     if (m) return m[1].trim().replace(/^["']|["']$/g, '');
   } catch { /* none */ }
   return null;
@@ -151,7 +159,7 @@ const titleCase = (s) => s.replace(/[-_]+/g, ' ').replace(/\b\w/g, (c) => c.toUp
 const dsName = firstH1('README.md') || skillName('SKILL.md') || titleCase(dsSlug);
 
 // --- merge _d_meta.json --------------------------------------------------
-const metaPath = metaPathFor(projectDir);
+const metaPath = containedPath(projectDir, path.basename(metaPathFor(projectDir)));
 let meta;
 try {
   meta = readMeta(metaPath);
@@ -188,12 +196,12 @@ for (const c of model.components) {
   if (seenPrompts.has(relPrompt)) continue; // several exports can share one source file
   seenPrompts.add(relPrompt);
   let text;
-  try { text = fs.readFileSync(path.join(dsDir, relPrompt), 'utf8'); } catch { continue; }
+  try { text = fs.readFileSync(sourcePath(relPrompt), 'utf8'); } catch { continue; }
   const excerpt = extractPromptExcerpt(text);
   if (excerpt) componentPrompts.push({ relPath: relPrompt, excerpt });
 }
 let readmeContent = '';
-try { readmeContent = fs.readFileSync(path.join(dsDir, 'README.md'), 'utf8'); } catch { /* none */ }
+try { readmeContent = fs.readFileSync(sourcePath('README.md'), 'utf8'); } catch { /* none */ }
 const promptMd = renderDsPrompt({
   name: dsName,
   slug: dsSlug,
@@ -207,7 +215,7 @@ const promptMd = renderDsPrompt({
   sourcePath: entry.sourcePath,
   hasBundle,
 });
-fs.writeFileSync(path.join(destRoot, '_ds_prompt.md'), promptMd);
+fs.writeFileSync(outputPath('_ds_prompt.md'), promptMd);
 copied.add('_ds_prompt.md');
 
 // --- report -------------------------------------------------------------------

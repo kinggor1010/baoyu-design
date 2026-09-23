@@ -3,7 +3,6 @@
 //   node --test 'skills/baoyu-design/agents/tests/*.test.mjs'
 
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -15,7 +14,9 @@ export const AGENTS_DIR = path.resolve(
 
 // per-test temp dir, removed when the test (incl. subtests) finishes
 export function tmpdir(t, prefix = 'baoyu-test-') {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  const scratch = path.resolve(AGENTS_DIR, '../../../.codex-tmp/tests');
+  fs.mkdirSync(scratch, { recursive: true });
+  const dir = fs.mkdtempSync(path.join(scratch, prefix));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   return dir;
 }

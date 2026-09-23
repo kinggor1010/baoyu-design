@@ -1,3 +1,5 @@
+> Maintained fork: full upstream skill with targeted hardening. See [HARDENING.md](HARDENING.md) for changes, tests, retained issues, and updates.
+
 # baoyu-design
 
 **Run Claude Design on your own local agent — Cursor, Claude Code, Claude Desktop, or any file‑capable coding agent.**
@@ -195,7 +197,7 @@ In Claude Code you can also trigger it explicitly with `/baoyu-design`; in Codex
 Deliverables are previewed over HTTP (multi‑file prototypes won't load from `file://`). The agent normally starts this for you; to run it by hand:
 
 ```bash
-python3 -m http.server 4311 --directory designs
+python3 -m http.server 4311 --bind 127.0.0.1 --directory designs
 # then open http://localhost:4311/<project>/<file>.html
 ```
 

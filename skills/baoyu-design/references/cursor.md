@@ -67,7 +67,7 @@ There is no `SendUserFile` in Cursor. To surface a deliverable to the user:
 Start one server for the whole `designs/` directory and reuse it (matches `.claude/launch.json`, port 4311):
 
 ```
-python3 -m http.server 4311 --directory designs
+python3 -m http.server 4311 --bind 127.0.0.1 --directory designs
 ```
 
 Run it with the `Shell` tool and `block_until_ms: 0` so it backgrounds; reuse the same server for every project. Then drive the browser with the `cursor-ide-browser` MCP (via `CallMcpTool`):

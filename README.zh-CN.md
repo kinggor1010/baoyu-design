@@ -196,7 +196,7 @@ Agent 会 clone 或抓取该仓库、加载 `SKILL.md` 然后开干 —— 临�
 交付物通过 HTTP 预览（多文件原型无法从 `file://` 加载）。通常 Agent 会自动帮你起服务；若要手动运行：
 
 ```bash
-python3 -m http.server 4311 --directory designs
+python3 -m http.server 4311 --bind 127.0.0.1 --directory designs
 # 然后打开 http://localhost:4311/<项目名>/<文件名>.html
 ```
 

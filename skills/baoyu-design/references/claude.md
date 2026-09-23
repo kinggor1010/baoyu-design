@@ -39,7 +39,7 @@ To surface a deliverable, use `SendUserFile` with the file path (works for any f
 
 To open a prototype in a browser — whether for the user to interact with or for you to preview/screenshot it — **always serve it over HTTP and load the `http://localhost:<port>/<project>/<file>.html` URL; do not open the HTML directly from `file://`.** A multi-file prototype (an HTML entry that loads `<script type="text/babel" src="…jsx">` components) only works over HTTP — the browser blocks cross-origin local script reads — and self-contained single files go through the same served URL so preview and screenshots stay consistent.
 
-Serve the whole `designs/` directory once (one server for all projects) and reuse it. Preview through the Claude Preview MCP, which serves from a named config in `.claude/launch.json`: define a single `designs` server that serves the whole `designs/` directory (`python3 -m http.server 4311 --directory designs`) so every project shares one server.
+Serve the whole `designs/` directory once (one server for all projects) and reuse it. Preview through the Claude Preview MCP, which serves from a named config in `.claude/launch.json`: define a single `designs` server that serves the whole `designs/` directory (`python3 -m http.server 4311 --bind 127.0.0.1 --directory designs`) so every project shares one server.
 
 ## Vision input probe
 
@@ -108,7 +108,7 @@ For thorough or directed checks ("screenshot and check the spacing"), first run 
 - Global `keydown` listeners DO fire via `window.dispatchEvent(new KeyboardEvent('keydown',{key:'k',metaKey:true,bubbles:true}))` — use this to test ⌘K / Esc / shortcuts.
 - The screenshot surface desyncs after an in-page `location.reload()` or repeated custom resizes (the window renders tiny in a corner). Resync via `preview_resize` to a preset then back to your size; prefer `location.href = …` over `reload()`.
 
-**If the preview MCP is unavailable,** fall back by file type. A fully self-contained single file can be opened with `open <path>` (`file://`); a multi-file prototype (`<script src="…jsx">`) will NOT load over `file://` and needs HTTP — start the `designs` server yourself (`python3 -m http.server 4311 --directory designs`) and open the URL, or spawn an `Agent` to verify. Never leave the user on a view that silently failed to load its components.
+**If the preview MCP is unavailable,** fall back by file type. A fully self-contained single file can be opened with `open <path>` (`file://`); a multi-file prototype (`<script src="…jsx">`) will NOT load over `file://` and needs HTTP — start the `designs` server yourself (`python3 -m http.server 4311 --bind 127.0.0.1 --directory designs`) and open the URL, or spawn an `Agent` to verify. Never leave the user on a view that silently failed to load its components.
 
 ## Design-system checker subagent
 
@@ -128,7 +128,7 @@ cd <skill>/agents/gen-pptx && npm install && npx playwright install chromium && 
 
 **Each export:**
 
-1. **Serve the deck over HTTP** — the CLI needs an `http(s)` URL, not `file://` (deck-stage and multi-file decks require a served origin). Reuse the one `designs` server (`python3 -m http.server 4311 --directory designs`); the deck is then at `http://localhost:<port>/<project>/<file>.html`.
+1. **Serve the deck over HTTP** — the CLI needs an `http(s)` URL, not `file://` (deck-stage and multi-file decks require a served origin). Reuse the one `designs` server (`python3 -m http.server 4311 --bind 127.0.0.1 --directory designs`); the deck is then at `http://localhost:<port>/<project>/<file>.html`.
 2. **Write the gen_pptx input object to a JSON file** (e.g. `/tmp/<project>-pptx.json`) — same schema as the export docs.
 3. **Run the CLI:**
 
@@ -155,7 +155,7 @@ ffmpeg must also be on `PATH` (`brew install ffmpeg` on macOS, `apt install ffmp
 
 **Each export:**
 
-1. **Serve the animation over HTTP** — the CLI needs an `http(s)` URL, not `file://` (multi-file `<script src>` animations require a served origin). Reuse the one `designs` server (`python3 -m http.server 4311 --directory designs`); the page is then at `http://localhost:<port>/<project>/<file>.html`. The CLI appends the capture-mode query param itself.
+1. **Serve the animation over HTTP** — the CLI needs an `http(s)` URL, not `file://` (multi-file `<script src>` animations require a served origin). Reuse the one `designs` server (`python3 -m http.server 4311 --bind 127.0.0.1 --directory designs`); the page is then at `http://localhost:<port>/<project>/<file>.html`. The CLI appends the capture-mode query param itself.
 2. **Write the gen_video input object to a JSON file** (e.g. `/tmp/<project>-video.json`) — same schema as the export doc. For a current `animations.jsx` Stage, `{ "width": 1920, "height": 1080, "filename": "…" }` is enough; for an older/hand-rolled timeline set `bridgeGlobal` (e.g. `"__ahe"`) and pass `hideSelectors` + `resetTransformSelector`.
 3. **Run the CLI:**
 

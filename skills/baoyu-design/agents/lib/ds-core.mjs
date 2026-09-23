@@ -9,6 +9,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { containedPath } from './contained-path.mjs';
 
 // ---------------------------------------------------------------------------
 // fs walk
@@ -79,13 +80,14 @@ function findGlobalCssEntry(root, files) {
 // what lets an SPA-extracted system (e.g. `colors_and_type.css`) resolve its
 // tokens without hardcoding every possible entry name.
 function manifestCssEntry(root) {
+  let m;
   try {
-    const m = JSON.parse(read(path.join(root, '_ds_manifest.json')));
-    const paths = Array.isArray(m && m.globalCssPaths) ? m.globalCssPaths : [];
-    if (!paths.length) return null;
-    const entry = paths[paths.length - 1];
-    if (entry && fs.existsSync(path.join(root, entry))) return entry;
+    m = JSON.parse(read(containedPath(root, '_ds_manifest.json')));
   } catch { /* no/invalid manifest */ }
+  const paths = Array.isArray(m && m.globalCssPaths) ? m.globalCssPaths : [];
+  if (!paths.length) return null;
+  const entry = paths[paths.length - 1];
+  if (entry && fs.existsSync(containedPath(root, entry))) return entry;
   return null;
 }
 
@@ -98,14 +100,17 @@ function resolveCssClosure(root, entryRel) {
   const visit = (relPath) => {
     if (seen.has(relPath)) return;
     seen.add(relPath);
-    const abs = path.join(root, relPath);
+    const abs = containedPath(root, relPath);
     let css;
     try { css = read(abs); } catch { return; }
-    let m;
-    IMPORT_RE.lastIndex = 0;
-    while ((m = IMPORT_RE.exec(css))) {
+    // Each recursion needs its own iterator; sharing lastIndex can skip
+    // sibling imports after a nested file is read.
+    for (const m of css.matchAll(IMPORT_RE)) {
       let spec = m[1].trim();
-      if (/^https?:/i.test(spec)) continue; // skip remote imports
+      if (/^(?:https?:)?\/\//i.test(spec)) continue; // skip remote imports
+      if (path.posix.isAbsolute(spec) || path.win32.isAbsolute(spec) || spec.includes('\\')) {
+        throw new Error(`Unsafe CSS import: ${spec}`);
+      }
       const childRel = path.posix.normalize(
         path.posix.join(path.posix.dirname(relPath), spec),
       );
@@ -162,7 +167,7 @@ function extractTokens(root, globalCssPaths) {
   const valueByName = new Map();
   for (const relPath of globalCssPaths) {
     let css;
-    try { css = read(path.join(root, relPath)); } catch { continue; }
+    try { css = read(containedPath(root, relPath)); } catch { continue; }
     let m;
     DECL_RE.lastIndex = 0;
     while ((m = DECL_RE.exec(css))) {
@@ -364,7 +369,7 @@ function detectFonts(root, tokens, globalCssPaths) {
   const faceIssues = [];
   for (const relPath of globalCssPaths) {
     let css;
-    try { css = read(path.join(root, relPath)); } catch { continue; }
+    try { css = read(containedPath(root, relPath)); } catch { continue; }
     const faceRe = /@font-face\s*\{([^}]*)\}/g;
     let m;
     while ((m = faceRe.exec(css))) {
@@ -423,12 +428,12 @@ function pascalCase(s) {
 function resolveNamespace(root, projectName) {
   // 1. existing manifest
   try {
-    const m = JSON.parse(read(path.join(root, '_ds_manifest.json')));
+    const m = JSON.parse(read(containedPath(root, '_ds_manifest.json')));
     if (m && typeof m.namespace === 'string' && m.namespace) return m.namespace;
   } catch { /* none */ }
   // 2. existing bundle header
   try {
-    const head = read(path.join(root, '_ds_bundle.js')).split(/\r?\n/, 1)[0];
+    const head = read(containedPath(root, '_ds_bundle.js')).split(/\r?\n/, 1)[0];
     const m = /@ds-bundle:\s*(\{[^]*?\})\s*\*\//.exec(head);
     if (m) {
       const meta = JSON.parse(m[1]);
@@ -548,12 +553,12 @@ export function buildModel(projectDir) {
     const dtsPath = (dir === '.' ? `${stem}.d.ts` : `${dir}/${stem}.d.ts`);
     const isModule = dtsFiles.has(dtsPath);
     let src = '';
-    try { src = read(path.join(root, sp)); } catch { /* skip */ }
+    try { src = read(containedPath(root, sp)); } catch { /* skip */ }
     const exports = collectExports(src);
     allSources.push({ path: sp, exports, isModule, dtsPath, stem });
     if (isModule) {
       let dts = '';
-      try { dts = read(path.join(root, dtsPath)); } catch { /* fail open */ }
+      try { dts = read(containedPath(root, dtsPath)); } catch { /* fail open */ }
       const interfaces = parseDtsInterfaces(dts);
       for (const name of exports) {
         if (isCapitalized(name)) {
@@ -600,7 +605,7 @@ export function buildModel(projectDir) {
   const cardByDir = new Map(); // dir -> first card path
   for (const hp of htmlFiles.slice().sort()) {
     let src = '';
-    try { src = read(path.join(root, hp)); } catch { continue; }
+    try { src = read(containedPath(root, hp)); } catch { continue; }
     const attrs = findTagComment(src, 'dsCard', 4);
     if (!attrs) continue;
     cards.push({
@@ -621,7 +626,7 @@ export function buildModel(projectDir) {
   const moduleSet = new Set(allSources.filter((s) => s.isModule).map((s) => s.path));
   for (const hp of htmlFiles) {
     let src = '';
-    try { src = read(path.join(root, hp)); } catch { continue; }
+    try { src = read(containedPath(root, hp)); } catch { continue; }
     const dir = path.posix.dirname(hp);
     const srcRe = /<script[^>]+src=["']([^"']+\.(?:jsx|tsx))["']/g;
     let m;
@@ -649,7 +654,7 @@ export function buildModel(projectDir) {
   for (const s of allSources) {
     if (!s.isModule) continue;
     let dts = '';
-    try { dts = read(path.join(root, s.dtsPath)); } catch { continue; }
+    try { dts = read(containedPath(root, s.dtsPath)); } catch { continue; }
     const m = /@startingPoint\b([^\n*]*)/.exec(dts);
     if (!m) continue;
     const attrs = parseAttrs(m[1]);
@@ -671,7 +676,7 @@ export function buildModel(projectDir) {
   // screen starting points: from .html @startingPoint comment
   for (const hp of htmlFiles) {
     let src = '';
-    try { src = read(path.join(root, hp)); } catch { continue; }
+    try { src = read(containedPath(root, hp)); } catch { continue; }
     const attrs = findTagComment(src, 'startingPoint', 6);
     if (!attrs) continue;
     const dir = path.posix.dirname(hp);
@@ -699,7 +704,7 @@ export function buildModel(projectDir) {
   const readmeRel = files.map((f) => rel(root, f)).find((r) => /^readme\.md$/i.test(r));
   if (readmeRel) {
     let readme = '';
-    try { readme = read(path.join(root, readmeRel)); } catch { /* */ }
+    try { readme = read(containedPath(root, readmeRel)); } catch { /* */ }
     const nsRefs = [...readme.matchAll(/window\.([A-Za-z0-9_]+_[0-9a-f]{6})\b/g)].map((m) => m[1]);
     for (const ns of nsRefs) {
       if (ns !== namespace) {

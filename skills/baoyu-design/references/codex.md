@@ -38,7 +38,7 @@ Always serve the prototype over HTTP and load the served URL. Do not open HTML p
 Start or reuse one server for the whole `designs/` directory:
 
 ```bash
-python3 -m http.server 4311 --directory designs
+python3 -m http.server 4311 --bind 127.0.0.1 --directory designs
 ```
 
 If port `4311` is busy, use the next available port and report that URL.
