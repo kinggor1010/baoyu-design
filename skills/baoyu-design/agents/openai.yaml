@@ -1,0 +1,6 @@
+interface:
+  display_name: "Baoyu Design"
+  short_description: "Create design artifacts as self-contained HTML"
+
+policy:
+  allow_implicit_invocation: false

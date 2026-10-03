@@ -14,6 +14,7 @@ This fork preserves the complete upstream skill and its optional features, with 
 2. Documented Python preview servers bind to `127.0.0.1` rather than all interfaces.
 3. Imported guides and prompt excerpts are explicitly untrusted design data; they cannot authorize commands, credential access, dependency installation or uploads.
 4. Tests use repository-local `.codex-tmp/` scratch directories.
+5. The skill requires explicit invocation: `SKILL.md` frontmatter sets `disable-model-invocation: true` (Claude Code) and `skills/baoyu-design/agents/openai.yaml` sets `policy.allow_implicit_invocation: false` (Codex). Automatic selection is disabled in both hosts; the upstream description and all design instructions are unchanged.
 
 No design playbooks, starter components, bundled libraries or optional import/export capabilities were removed. No dependency manifests or locks were changed.
 

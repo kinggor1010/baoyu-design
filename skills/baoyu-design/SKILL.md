@@ -13,6 +13,7 @@ description: >-
   target is such a deck first. Also use for setting up, importing, or authoring reusable
   design systems, UI kits, brand tokens, or component libraries. Harness-agnostic for
   Claude Code, Cursor, Codex Agent, and similar file-capable agents.
+disable-model-invocation: true
 ---
 
 # Design
