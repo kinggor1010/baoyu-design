@@ -38,7 +38,7 @@ The 23 September dependency survey queried 56 upstream npm identities through OS
 
 ## Installation and updates
 
-The parent `agents-skills` repository pins this fork at an exact commit under `vendor/baoyu-design`. Its `skills/baoyu-design` symlink points to this repository's `skills/baoyu-design` folder. No npm installer is needed to expose the skill; optional export tools have separate setup requirements.
+The parent `agents-skills` repository pins this fork at an exact commit under `vendor/baoyu-design`. Its `skills/design/baoyu-design` symlink points to this repository's `skills/baoyu-design` folder. No npm installer is needed to expose the skill; optional export tools have separate setup requirements.
 
 GitHub Actions should remain disabled on the maintained fork; the inherited workflows are not part of the review. Do not auto-update the installed submodule or pull upstream directly into it. For an update:
 
